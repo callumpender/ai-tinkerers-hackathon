@@ -1,0 +1,39 @@
+exclude: '^(build|docs)'
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-added-large-files
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-xml
+      - id: check-yaml
+      - id: check-toml
+      - id: debug-statements
+      - id: end-of-file-fixer
+
+  - repo: local
+    hooks:
+      - id: ruff # Linter
+        name: ruff (linter)
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, jupyter]
+
+      - id: ruff-format # Formatter
+        name: ruff (formatter)
+        entry: uv run ruff format
+        language: system
+        types_or: [python, jupyter]
+
+      - id: nbstripout
+        name: nbstripout
+        entry: uv run nbstripout
+        language: system
+        types: [jupyter]
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.7.9
+    hooks:
+      - id: uv-lock
