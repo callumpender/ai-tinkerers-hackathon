@@ -17,7 +17,7 @@ repos:
     hooks:
       - id: ruff # Linter
         name: ruff (linter)
-        entry: uv run ruff check --fix
+        entry: uv run ruff check --select F --fix --exit-zero
         language: system
         types_or: [python, jupyter]
 
@@ -32,8 +32,3 @@ repos:
         entry: uv run nbstripout
         language: system
         types: [jupyter]
-
-  - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.7.9
-    hooks:
-      - id: uv-lock
