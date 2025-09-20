@@ -178,13 +178,20 @@ This project includes a real-time speech-to-text WebSocket server that streams a
 
 3. **Start the WebSocket server:**
    ```bash
-   uv run uvicorn src.websocket_server:app --host 0.0.0.0 --port 8000
+   uv run uvicorn src.websocket_server:app --host 0.0.0.0 --port 8001
    ```
 
 4. **Run the microphone client (in a new terminal):**
    ```bash
+
+   # Install PortAudio
+   brew install portaudio
+
+   # Then try installing your package again
+   uv sync
+
    # Install audio dependencies first
-   pip install pyaudio websockets
+   uv add pyaudio websockets
 
    # Run the microphone client
    uv run python src/microphone_client.py
