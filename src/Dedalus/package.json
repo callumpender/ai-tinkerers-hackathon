@@ -21,10 +21,15 @@
     "@modelcontextprotocol/sdk": "^1.17.3",
     "dotenv": "^16.4.5",
     "music-metadata": "^10.4.0"
+    "@types/ws": "^8.18.1",
+    "dotenv": "^16.4.5",
+    "form-data": "^4.0.4",
+    "node-fetch": "^3.3.2",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@types/node": "^20.12.12",
     "shx": "^0.3.4",
-    "typescript": "^5.4.5",
-    "@types/node": "^20.12.12"
+    "typescript": "^5.4.5"
   }
 }

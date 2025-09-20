@@ -15,6 +15,10 @@ dependencies = [
   "sounddevice>=0.4.7",
   "soundfile>=0.12.1",
   # "faculty-plot==2022.1.0",
+  "fastapi>=0.111.1",
+  "uvicorn[standard]>=0.30.3",
+  "websockets>=12.0",
+  "elevenlabs>=1.0.0",
 ]
 
 [tool.uv.sources]

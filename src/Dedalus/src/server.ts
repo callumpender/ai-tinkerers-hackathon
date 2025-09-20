@@ -37,7 +37,7 @@ export function createStandaloneServer(apiKey: string): Server {
 
     serverInstance.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
-        
+
         switch (name) {
             case "dedalus_search":
                 return await handleSearchTool(dedalusClient, args);
@@ -64,4 +64,39 @@ export class DedalusServer {
     getServer(): Server {
         return createStandaloneServer(this.apiKey);
     }
+}
+
+import * as http from 'http';
+import * as WebSocket from 'ws';
+
+export function startWebSocketServer() {
+    const server = http.createServer();
+    const wss = new WebSocket.Server({ noServer: true });
+
+    wss.on('connection', ws => {
+        console.log('Client connected');
+        ws.on('message', message => {
+            console.log(`Received message: ${message}`);
+            ws.send(`Echo: ${message}`);
+        });
+        ws.on('close', () => {
+            console.log('Client disconnected');
+        });
+    });
+
+    server.on('upgrade', (request, socket, head) => {
+        const pathname = request.url;
+
+        if (pathname === '/ws') {
+            wss.handleUpgrade(request, socket, head, ws => {
+                wss.emit('connection', ws, request);
+            });
+        } else {
+            socket.destroy();
+        }
+    });
+
+    server.listen(8000, () => {
+        console.log('WebSocket server started on port 8000');
+    });
 }
