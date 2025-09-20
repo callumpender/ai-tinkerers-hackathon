@@ -13,6 +13,7 @@ in the audio and the processed audio stream.
 import asyncio
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import logging
+from speech_to_text_module import SpeechToTextProcessor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -57,27 +58,56 @@ async def websocket_endpoint(websocket: WebSocket):
             logger.warning("Invalid initial message format. Closing connection.")
             return
 
+        # Initialize speech-to-text processor
+        stt_processor = SpeechToTextProcessor(
+            buffer_duration=3.0,  # Process audio every 3 seconds
+            log_file_path=f"transcription_log_{prompt.replace(' ', '_')}.txt"
+        )
+
+        # Set up transcription callback
+        latest_transcription = {"text": ""}
+
+        def transcription_callback(text: str):
+            latest_transcription["text"] = text
+            logger.info(f"New transcription available: {text}")
+
+        stt_processor.set_transcription_callback(transcription_callback)
+
         # Loop to process audio stream
         while True:
             # Receive audio data from the client
             audio_data = await websocket.receive_bytes()
             logger.info(f"Received {len(audio_data)} bytes of audio data.")
 
-            # TODO: Add actual audio processing and pause detection logic here
-            # For now, we'll just mock the response
-            is_there_a_pause = False  # Mocked value
-            processed_audio = audio_data  # Mocked processing (echo back)
+            # Add audio to speech-to-text processor
+            await stt_processor.add_audio_chunk(audio_data)
 
-            # Send the response back to the client
-            await websocket.send_json({"is_there_a_pause": is_there_a_pause})
-            await websocket.send_bytes(processed_audio)
-            logger.info("Sent processed audio data and pause status.")
+            # Simple pause detection based on audio data size (basic heuristic)
+            is_there_a_pause = len(audio_data) < 1024  # Consider small chunks as potential pauses
 
-            # Add a small delay to prevent a tight loop in this example
+            # Send the response back to the client (including any new transcription)
+            response_data = {
+                "is_there_a_pause": is_there_a_pause,
+                "transcription": latest_transcription["text"]
+            }
+            await websocket.send_json(response_data)
+            await websocket.send_bytes(audio_data)  # Echo back audio data
+            logger.info("Sent processed audio data, pause status, and transcription.")
+
+            # Reset transcription after sending
+            latest_transcription["text"] = ""
+
+            # Add a small delay to prevent a tight loop
             await asyncio.sleep(0.1)
 
     except WebSocketDisconnect:
         logger.info("Client disconnected.")
+        # Flush any remaining audio in the buffer before closing
+        if 'stt_processor' in locals():
+            await stt_processor.flush_buffer()
     except Exception as e:
         logger.error(f"An error occurred: {e}")
+        # Flush any remaining audio in the buffer before closing
+        if 'stt_processor' in locals():
+            await stt_processor.flush_buffer()
         await websocket.close(code=1011)
