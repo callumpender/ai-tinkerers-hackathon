@@ -1,6 +1,6 @@
 # Ultimate Agents Hackathon
 
-This project is our submission for the Ultimate Agents Hackathon, the biggest hackathon yet in London. We are building with cutting-edge AI agent tools to compete for substantial prizes.
+This project is our submission for the Ultimate Agents Hackathon, the biggest hackathon yet in London. We are building with cutting-edge AI agent tools to compete for fun, and to learn.
 
 ## The Team
 
