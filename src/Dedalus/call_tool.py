@@ -1,9 +1,11 @@
 import json
+import os
 import selectors
 import subprocess
+from pathlib import Path
 from typing import TextIO
 
-AUDIO_PATH = "/Users/hansgunnoo/Documents/ai_tinkerers_hackathon/ten_seconds.m4a"  # <= update this
+AUDIO_PATH = "/Users/hansgunnoo/Documents/ai_tinkerers_hackathon/test_lull.m4a"  # <= update this
 
 
 def read_line(stream: TextIO, *, label: str, timeout: float = 5.0) -> str:
@@ -23,12 +25,18 @@ def read_line(stream: TextIO, *, label: str, timeout: float = 5.0) -> str:
     return line.rstrip()
 
 
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+PYTHONPATH = str(REPO_ROOT / "src")
+
 proc = subprocess.Popen(
-    ["node", "dist/index.js", "--stdio"],
+    ["python", "-m", "dedalus_mcp.server"],
     text=True,
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
+    cwd=REPO_ROOT,
+    env={**os.environ, "PYTHONPATH": PYTHONPATH},
 )
 
 # Debug: confirm the server banner appears on stderr.
