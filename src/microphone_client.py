@@ -201,9 +201,6 @@ class MicrophoneStreamer:
                     self.message_receiver()
                 )
 
-        except websockets.exceptions.ConnectionRefused:
-            print("❌ Connection refused. Make sure the WebSocket server is running.")
-            print("   Start server with: uv run uvicorn src.websocket_server:app --host 0.0.0.0 --port 8000")
         except Exception as e:
             print(f"❌ Error: {e}")
         finally:
