@@ -20,10 +20,12 @@ dependencies = [
   "websockets>=12.0",
   "elevenlabs>=1.0.0",
   "pyaudio>=0.2.14",
+  "ten-vad",
 ]
 
 [tool.uv.sources]
 faculty-plot = { url = "https://faculty.jfrog.io/artifactory/api/pypi/faculty-no-pypi/simple" }
+ten-vad = { git = "https://github.com/TEN-framework/ten-vad.git" }
 
 
 [tool.uv]
