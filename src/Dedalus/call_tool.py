@@ -3,7 +3,7 @@ import selectors
 import subprocess
 from typing import TextIO
 
-AUDIO_PATH = "/Users/hansgunnoo/Documents/ai_tinkerers_hackathon/test_lull.m4a"  # <= update this
+AUDIO_PATH = "/Users/hansgunnoo/Documents/ai_tinkerers_hackathon/ten_seconds.m4a"  # <= update this
 
 
 def read_line(stream: TextIO, *, label: str, timeout: float = 5.0) -> str:

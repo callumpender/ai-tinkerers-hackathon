@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.3",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "music-metadata": "^10.4.0"
   },
   "devDependencies": {
     "shx": "^0.3.4",

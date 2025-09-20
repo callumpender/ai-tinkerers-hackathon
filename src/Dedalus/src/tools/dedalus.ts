@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { parseFile } from 'music-metadata';
 
 import { DedalusClient } from '../client.js';
 import type {
@@ -76,7 +77,7 @@ export async function handleSearchTool(
  */
 export const audioTranscriptionToolDefinition: Tool = {
     name: "dedalus_transcribe_audio",
-    description: "Accept an .m4a audio file and acknowledge receipt.",
+    description: "Accept an .m4a audio file, report its duration, and acknowledge receipt.",
     inputSchema: {
         type: "object",
         properties: {
@@ -119,14 +120,31 @@ export async function handleAudioTranscriptionTool(
             throw new Error("Only .m4a files are supported by this tool");
         }
 
-        // Read the file to emulate accepting the payload. We ignore the bytes afterwards.
+        // Touch the file to mirror upload behaviour even if metadata parsing fails later.
         await fs.readFile(resolvedPath);
+
+        let durationSeconds: number | null = null;
+        try {
+            const metadata = await parseFile(resolvedPath, { duration: true });
+            const duration = metadata.format.duration;
+            if (typeof duration === 'number' && Number.isFinite(duration)) {
+                durationSeconds = duration;
+            }
+        } catch (metadataError) {
+            console.warn(`Unable to read audio metadata for ${resolvedPath}:`, metadataError);
+        }
+
+        const payload = {
+            message: "Received audio file",
+            durationSeconds,
+            filePath: resolvedPath,
+        };
 
         return {
             content: [
                 {
                     type: "text",
-                    text: "Received audio file",
+                    text: JSON.stringify(payload, null, 2),
                 },
             ],
         };
