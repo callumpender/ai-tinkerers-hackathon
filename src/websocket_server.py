@@ -78,7 +78,7 @@ def delayed_prompt_sender(prompt: str, websocket: WebSocket, log_file_path: str)
         
         # Simulate checking for 5-second and 20-second silence periods
         silence5 = random.choice([True, False])  # 0.5+ seconds of silence
-        silence20 = random.choice([True, False]) if silence5 else False  # 2+ seconds (only if 0.5+ is True)
+        silence20 = random.random() < 0.3 if silence5 else False  # 30% chance of 2+ seconds (only if 0.5+ is True)
         
         result = {
             "silence5": silence5,
@@ -340,6 +340,15 @@ async def websocket_endpoint(websocket: WebSocket):
             log_file_path=log_file_path
         )
 
+        # Start the delayed prompt sender thread (agent)
+        agent_thread = threading.Thread(
+            target=delayed_prompt_sender,
+            args=(prompt, websocket, log_file_path),
+            daemon=True
+        )
+        agent_thread.start()
+        logger.info("Started delayed prompt sender agent thread")
+
         batch_counter = 0
 
         # Set up transcription callback and accumulated transcript
@@ -381,32 +390,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # Process the audio chunk for speech-to-text
                 await stt_processor.add_audio_chunk(audio_chunk)
-
-                # Check if it's time for a random pause
-                current_time = time.time()
-                time_since_last_pause = current_time - last_pause_time
-
-                if time_since_last_pause >= next_pause_interval:
-                    # Time for a pause event - send accumulated transcript
-                    full_transcript = " ".join(accumulated_transcript)
-                    response_data = {"is_there_a_pause": True, "transcription": full_transcript}
-                    logger.info(f"Pause event triggered. Full transcript: '{full_transcript}'")
-
-                    # Reset for next pause interval
-                    last_pause_time = current_time
-                    next_pause_interval = random.uniform(5, 15)
-                    accumulated_transcript.clear()
-                else:
-                    # Regular response with latest transcription
-                    response_data = {"is_there_a_pause": False, "transcription": latest_transcription["text"]}
-
-                await websocket.send_json(response_data)
-
-                if latest_transcription["text"]:
-                    logger.info(f"Transcription: '{latest_transcription['text']}'")
-
-                # Reset latest transcription after sending
-                latest_transcription["text"] = ""
 
             except asyncio.TimeoutError:
                 logger.info("Timeout waiting for audio chunk - client may have paused")
