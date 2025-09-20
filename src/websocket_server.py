@@ -11,6 +11,7 @@ in the audio and the processed audio stream.
 """
 
 import asyncio
+import base64
 import logging
 from speech_to_text_module import SpeechToTextProcessor
 
@@ -38,8 +39,8 @@ async def websocket_endpoint(websocket: WebSocket):
     2. Client sends a JSON message with "prompt" (str) and "duration" (int).
     3. Client starts sending audio data as binary messages.
     4. Server receives audio data and sends back a JSON message with
-       "is_there_a_pause" (bool) and the processed audio data as a binary
-       message.
+       "is_there_a_pause" (bool), the base64-encoded processed audio chunk,
+       and any available transcription text.
 
     Args:
         websocket (WebSocket): The WebSocket connection object.
@@ -89,11 +90,11 @@ async def websocket_endpoint(websocket: WebSocket):
             # Send the response back to the client (including any new transcription)
             response_data = {
                 "is_there_a_pause": is_there_a_pause,
-                "transcription": latest_transcription["text"]
+                "transcription": latest_transcription["text"],
+                "audio_chunk": base64.b64encode(audio_data).decode("ascii"),
             }
             await websocket.send_json(response_data)
-            await websocket.send_bytes(audio_data)  # Echo back audio data
-            logger.info("Sent processed audio data, pause status, and transcription.")
+            logger.info("Sent response payload with pause status, transcription, and audio chunk.")
 
             # Reset transcription after sending
             latest_transcription["text"] = ""
