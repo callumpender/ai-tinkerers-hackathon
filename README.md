@@ -9,7 +9,7 @@ This project is our submission for the Ultimate Agents Hackathon, the biggest ha
 - Spyros
 - Callum
 
-# FRONTEND
+## FRONTEND setup
 npm install
 
 npm run dev
