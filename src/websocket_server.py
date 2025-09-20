@@ -60,7 +60,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
         # Initialize speech-to-text processor
         stt_processor = SpeechToTextProcessor(
-            buffer_duration=3.0,  # Process audio every 3 seconds
+            buffer_duration=1.0,  # Process audio every 1 second
             log_file_path=f"transcription_log_{prompt.replace(' ', '_')}.txt"
         )
 
