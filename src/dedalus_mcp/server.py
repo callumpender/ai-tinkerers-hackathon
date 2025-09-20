@@ -62,7 +62,7 @@ async def process_transcript_with_gpt(transcript_path: str = "transcript.txt") -
 
         # Generate response using GPT
         response = await client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "system",
