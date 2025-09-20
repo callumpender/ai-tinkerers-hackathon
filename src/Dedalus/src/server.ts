@@ -35,7 +35,7 @@ export function createStandaloneServer(apiKey: string): Server {
 
     serverInstance.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
-        
+
         switch (name) {
             case "dedalus_search":
                 return await handleSearchTool(dedalusClient, args);

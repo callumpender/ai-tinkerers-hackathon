@@ -11,9 +11,10 @@ in the audio and the processed audio stream.
 """
 
 import asyncio
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import logging
 from speech_to_text_module import SpeechToTextProcessor
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

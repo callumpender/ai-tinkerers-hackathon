@@ -3,8 +3,8 @@ import { Buffer } from 'buffer';
 
 async function main() {
     // Replace with your FastAPI WebSocket URL
-    const wsUrl = 'ws://localhost:8000/ws'; 
-    
+    const wsUrl = 'ws://localhost:8000/ws';
+
     const client = new StreamingClient(wsUrl);
 
     try {
