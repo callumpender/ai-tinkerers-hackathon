@@ -11,6 +11,9 @@ dependencies = [
   "sphinx>=8.1.3",
   "faculty-sphinx-theme>=0.3.1",
   # "faculty-plot==2022.1.0",
+  "fastapi>=0.111.1",
+  "uvicorn[standard]>=0.30.3",
+  "websockets>=12.0",
 ]
 
 [tool.uv.sources]
