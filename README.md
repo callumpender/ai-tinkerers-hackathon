@@ -54,6 +54,93 @@ This project includes a Dedalus streaming client that connects to a WebSocket se
 
 The client will connect to the server, send a dummy audio chunk, and close the connection.
 
+## ElevenLabs Speech-to-Text Module
+
+This project includes a standalone speech-to-text module using the ElevenLabs API, available in both TypeScript and Python implementations.
+
+### Features
+
+- **Multi-format Support**: MP3, WAV, FLAC, AAC, OGG, WebM audio + MP4, AVI, MKV video
+- **Multiple Input Methods**: File paths or audio buffers
+- **Flexible Output**: JSON, text, SRT, VTT, or verbose JSON responses
+- **Timestamps**: Word-level and segment-level timing data
+- **99 Languages**: Full ElevenLabs language support
+- **Environment Configuration**: Secure API key management
+
+### Python Setup
+
+1. **Install Dependencies:**
+   ```bash
+   cd src/Dedalus
+   pip install -r requirements.txt
+   ```
+
+2. **Configure API Key:**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your ElevenLabs API key
+   ```
+
+3. **Run Example:**
+   ```bash
+   python src/speech_to_text_example.py
+   ```
+
+### TypeScript Setup
+
+1. **Build the Module:**
+   ```bash
+   cd src/Dedalus
+   npm install
+   npm run build
+   ```
+
+2. **Configure API Key:**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your ElevenLabs API key
+   ```
+
+3. **Run Example:**
+   ```bash
+   node dist/speech-to-text-example.js
+   ```
+
+### Usage Examples
+
+**Python:**
+```python
+from speech_to_text_example import ElevenLabsSpeechToText
+
+# From environment variable
+stt = ElevenLabsSpeechToText.from_env()
+
+# Transcribe file
+result = stt.transcribe_file("audio.mp3", response_format="verbose_json")
+print(result["text"])
+
+# Transcribe buffer
+with open("audio.mp3", "rb") as f:
+    buffer_result = stt.transcribe_buffer(f.read(), "audio.mp3")
+```
+
+**TypeScript:**
+```typescript
+import { ElevenLabsSpeechToText } from './speech-to-text.js';
+
+const stt = ElevenLabsSpeechToText.fromEnv();
+const result = await stt.transcribeFile('audio.mp3');
+console.log(result.text);
+```
+
+### API Key Setup
+
+Get your ElevenLabs API key from [https://elevenlabs.io/docs/introduction](https://elevenlabs.io/docs/introduction) and add it to your `.env` file:
+
+```
+ELEVENLABS_API_KEY=your_api_key_here
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. It also includes a custom license in [LICENSE.txt](LICENSE.txt).
