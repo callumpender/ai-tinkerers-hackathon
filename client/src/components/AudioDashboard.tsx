@@ -55,11 +55,9 @@ export const AudioDashboard = () => {
       sendAudioData(audioData);
     }, [sendAudioData]),
     onRecordingComplete: useCallback(() => {
-      console.log('✅ Frontend concatenated file created - now disconnecting WebSocket for backend file');
-      // Disconnect WebSocket after frontend file is ready
+      // Disconnect WebSocket after batch is processed
       setTimeout(() => {
         disconnect();
-        console.log('WebSocket disconnected - backend should create concatenated file');
       }, 200);
     }, [disconnect])
   });
@@ -83,8 +81,6 @@ export const AudioDashboard = () => {
   };
 
   const handleStopSession = () => {
-    console.log('Stopping session - this should trigger concatenated file creation');
-
     // Stop recording (this will trigger onRecordingComplete callback which handles WebSocket disconnect)
     stopRecording();
 

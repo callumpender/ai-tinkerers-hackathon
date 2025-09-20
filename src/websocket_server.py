@@ -12,8 +12,6 @@ in the audio and the processed audio stream.
 
 import asyncio
 import logging
-import os
-from datetime import datetime
 from speech_to_text_module import SpeechToTextProcessor
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -67,9 +65,6 @@ async def websocket_endpoint(websocket: WebSocket):
             log_file_path=f"transcription_log_{prompt.replace(' ', '_')}.txt",
         )
 
-        # Create debug directory for audio batches
-        debug_dir = "debug_audio_batches"
-        os.makedirs(debug_dir, exist_ok=True)
         batch_counter = 0
 
         # Set up transcription callback
@@ -84,70 +79,34 @@ async def websocket_endpoint(websocket: WebSocket):
         # Loop to process audio stream
         while True:
             try:
-                # Receive 2-second audio batch from the client
-                logger.info("⏳ Waiting for 2-second audio batch...")
-
-                # Use asyncio.wait_for to add timeout for batch reception
-                audio_batch = await asyncio.wait_for(
+                # Receive 100ms audio chunk from the client
+                audio_chunk = await asyncio.wait_for(
                     websocket.receive_bytes(),
-                    timeout=10.0,  # 10 second timeout for 2-second batches
+                    timeout=5.0,  # 5 second timeout for 100ms chunks
                 )
 
                 batch_counter += 1
-                logger.info(f"📦 Received audio batch #{batch_counter}: {len(audio_batch)} bytes")
+                logger.info(f"Received audio chunk #{batch_counter}: {len(audio_chunk)} bytes")
 
-                # Save the 2-second batch for debugging
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-                batch_filename = os.path.join(debug_dir, f"batch_{batch_counter:04d}_{timestamp}.webm")
+                # Process the 100ms chunk for speech-to-text
+                await stt_processor.add_audio_chunk(audio_chunk)
 
-                try:
-                    with open(batch_filename, "wb") as f:
-                        f.write(audio_batch)
-                    logger.info(f"💾 Saved 2-second audio batch: {batch_filename}")
-
-                    # Analyze the batch for speech-to-text debugging
-                    if len(audio_batch) > 0:
-                        # Check if it's all zeros (silence)
-                        if all(b == 0 for b in audio_batch):
-                            logger.warning("⚠️ Audio batch contains only zeros (complete silence)")
-                        # Check for potential white noise patterns
-                        elif len(set(audio_batch)) < 50:  # Very low variety
-                            logger.warning("⚠️ Audio batch has very low variety - likely white noise or silence")
-                        else:
-                            logger.info(f"✅ Audio batch #{batch_counter} appears to contain varied audio data")
-
-                        # Show byte distribution for debugging
-                        if len(audio_batch) >= 1000:  # Sample first 1000 bytes
-                            sample = audio_batch[:1000]
-                            unique_bytes = len(set(sample))
-                            logger.info(f"🔍 Batch analysis: {unique_bytes} unique byte values in first 1000 bytes")
-                    else:
-                        logger.warning("⚠️ Empty audio batch received")
-
-                except Exception as e:
-                    logger.error(f"Failed to save audio batch: {e}")
-
-                # Process the complete 2-second batch for speech-to-text
-                logger.info("🎯 Processing 2-second batch for speech-to-text...")
-                await stt_processor.add_audio_chunk(audio_batch)
+                # Simple pause detection based on audio chunk size
+                is_there_a_pause = len(audio_chunk) < 1024  # Consider small chunks as potential pauses
 
                 # Send response back with transcription results
-                response_data = {
-                    "batch_number": batch_counter,
-                    "batch_size_bytes": len(audio_batch),
-                    "transcription": latest_transcription["text"]
-                    if latest_transcription["text"]
-                    else "No speech detected in this batch",
-                }
+                response_data = {"is_there_a_pause": is_there_a_pause, "transcription": latest_transcription["text"]}
                 await websocket.send_json(response_data)
-                logger.info(f"📤 Sent response for batch #{batch_counter}: '{latest_transcription['text']}'")
 
-                # Reset transcription for next batch
+                if latest_transcription["text"]:
+                    logger.info(f"Transcription: '{latest_transcription['text']}'")
+
+                # Reset transcription after sending
                 latest_transcription["text"] = ""
 
             except asyncio.TimeoutError:
-                logger.info("⏰ Timeout waiting for audio batch - client may be processing or stopped")
-                response_data = {"status": "waiting", "message": "Waiting for next 2-second audio batch..."}
+                logger.info("Timeout waiting for audio chunk - client may have paused")
+                response_data = {"status": "waiting", "message": "Waiting for audio..."}
                 await websocket.send_json(response_data)
 
             except Exception as e:
@@ -155,17 +114,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 break
 
     except WebSocketDisconnect:
-        logger.info(f"🔌 Client disconnected. Processed {batch_counter} audio batches total.")
+        logger.info(f"Client disconnected. Processed {batch_counter} audio batches total.")
 
         # Flush any remaining audio in the buffer before closing
         if "stt_processor" in locals():
             await stt_processor.flush_buffer()
-            logger.info("✅ Flushed remaining audio from speech-to-text buffer")
+            logger.info("Flushed remaining audio from speech-to-text buffer")
 
     except Exception as e:
-        logger.error(f"❌ An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
         logger.info(
-            f"📊 Session summary: Processed {batch_counter if 'batch_counter' in locals() else 0} audio batches before error"
+            f"Session summary: Processed {batch_counter if 'batch_counter' in locals() else 0} audio batches before error"
         )
 
         # Flush any remaining audio in the buffer before closing

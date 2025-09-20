@@ -74,18 +74,42 @@ class SpeechToTextProcessor:
 
     async def add_audio_chunk(self, audio_data: bytes):
         """
-        Process a complete audio batch for transcription.
-
-        Since we're now receiving complete 2-second WebM batches from the frontend,
-        we process each batch directly instead of buffering.
+        Add an audio chunk to the buffer for processing.
 
         Args:
-            audio_data: Complete WebM audio batch bytes.
+            audio_data: WebM audio chunk bytes (typically 100ms).
         """
-        self.logger.info(f"🎯 Processing audio batch: {len(audio_data)} bytes")
+        if self.buffer_start_time is None:
+            self.buffer_start_time = asyncio.get_event_loop().time()
 
-        # Process this batch directly
-        await self._process_webm_batch(audio_data)
+        self.audio_buffer.write(audio_data)
+
+        # Check if buffer duration has been reached
+        current_time = asyncio.get_event_loop().time()
+        if current_time - self.buffer_start_time >= self.buffer_duration:
+            await self._process_buffer_as_webm()
+
+    async def _process_buffer_as_webm(self):
+        """Process the current audio buffer as WebM data and transcribe it."""
+        if self.audio_buffer.tell() == 0:
+            return  # No data in buffer
+
+        try:
+            # Get buffered WebM data
+            self.audio_buffer.seek(0)
+            webm_data = self.audio_buffer.read()
+            self.logger.info(f"Processing buffered WebM data: {len(webm_data)} bytes")
+
+            # Process the buffered data
+            await self._process_webm_batch(webm_data)
+
+        except Exception as e:
+            self.logger.error(f"Error processing WebM buffer: {e}")
+        finally:
+            # Reset buffer
+            self.audio_buffer.seek(0)
+            self.audio_buffer.truncate(0)
+            self.buffer_start_time = None
 
     async def _process_webm_batch(self, webm_data: bytes):
         """
@@ -95,11 +119,11 @@ class SpeechToTextProcessor:
             webm_data: Complete WebM audio data bytes.
         """
         if len(webm_data) == 0:
-            self.logger.warning("⚠️ Empty WebM batch received")
+            self.logger.warning("Empty WebM batch received")
             return
 
         try:
-            self.logger.info("🔄 Converting WebM batch to WAV for ElevenLabs...")
+            self.logger.info("Converting WebM batch to WAV for ElevenLabs...")
 
             # Create temporary files
             with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as webm_file:
@@ -117,12 +141,12 @@ class SpeechToTextProcessor:
                 transcription = await self._transcribe_file(wav_path)
 
                 if transcription and transcription.strip():
-                    self.logger.info(f"✅ Transcription successful: '{transcription}'")
+                    self.logger.info(f"Transcription successful: '{transcription}'")
                     await self._handle_transcription(transcription)
                 else:
-                    self.logger.warning("⚠️ No transcription returned or empty result")
+                    self.logger.warning("No transcription returned or empty result")
             else:
-                self.logger.error("❌ Failed to convert WebM to WAV")
+                self.logger.error("Failed to convert WebM to WAV")
 
             # Clean up temp files
             try:
@@ -132,7 +156,7 @@ class SpeechToTextProcessor:
                 pass
 
         except Exception as e:
-            self.logger.error(f"❌ Error processing WebM batch: {e}")
+            self.logger.error(f"Error processing WebM batch: {e}")
 
     async def _convert_webm_to_wav(self, webm_path: str, wav_path: str) -> bool:
         """
@@ -159,24 +183,24 @@ class SpeechToTextProcessor:
                 wav_path,
             ]
 
-            self.logger.info(f"🛠️ Running ffmpeg conversion: {' '.join(cmd)}")
+            self.logger.info(f"Running ffmpeg conversion: {' '.join(cmd)}")
 
             # Run ffmpeg conversion
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, lambda: subprocess.run(cmd, capture_output=True, text=True))
 
             if result.returncode == 0:
-                self.logger.info("✅ WebM to WAV conversion successful")
+                self.logger.info("WebM to WAV conversion successful")
                 return True
             else:
-                self.logger.error(f"❌ ffmpeg failed: {result.stderr}")
+                self.logger.error(f"ffmpeg failed: {result.stderr}")
                 return False
 
         except FileNotFoundError:
-            self.logger.error("❌ ffmpeg not found. Please install ffmpeg to convert WebM to WAV")
+            self.logger.error("ffmpeg not found. Please install ffmpeg to convert WebM to WAV")
             return False
         except Exception as e:
-            self.logger.error(f"❌ Error converting WebM to WAV: {e}")
+            self.logger.error(f"Error converting WebM to WAV: {e}")
             return False
 
     async def _process_buffer(self):
@@ -283,4 +307,4 @@ class SpeechToTextProcessor:
     async def flush_buffer(self):
         """Process any remaining audio in the buffer."""
         if self.audio_buffer.tell() > 0:
-            await self._process_buffer()
+            await self._process_buffer_as_webm()
