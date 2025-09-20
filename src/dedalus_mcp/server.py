@@ -22,10 +22,95 @@ except ImportError:  # pragma: no cover - dependency missing at runtime
     sf = None
 
 import tempfile
+import asyncio
+import threading
+import os
 
 from mutagen.mp4 import MP4, MP4StreamInfoError
+import openai
 
 JSONDict = Dict[str, Any]
+
+
+async def process_transcript_with_gpt(transcript_path: str = "transcript.txt") -> str:
+    """
+    Read transcript file and process it with GPT to generate a response.
+
+    Args:
+        transcript_path: Path to the transcript file
+
+    Returns:
+        GPT response text
+    """
+    try:
+        # Check if transcript file exists
+        if not os.path.exists(transcript_path):
+            # Fallback to live_transcription.txt if transcript.txt doesn't exist
+            transcript_path = "live_transcription.txt"
+            if not os.path.exists(transcript_path):
+                return "No transcript file found to process"
+
+        # Read the transcript content
+        with open(transcript_path, 'r', encoding='utf-8') as f:
+            transcript_content = f.read().strip()
+
+        if not transcript_content:
+            return "Transcript file is empty"
+
+        # Initialize OpenAI client
+        client = openai.AsyncOpenAI()
+
+        # Generate response using GPT
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are Dedalus, an AI assistant that analyzes speech transcripts and provides helpful responses. Provide concise, relevant feedback based on the transcript content."
+                },
+                {
+                    "role": "user",
+                    "content": f"Please analyze this speech transcript and provide a helpful response:\n\n{transcript_content}"
+                }
+            ],
+            max_tokens=500,
+            stream=False
+        )
+
+        return response.choices[0].message.content
+
+    except Exception as e:
+        return f"Error processing transcript with GPT: {str(e)}"
+
+
+async def stream_gpt_response_via_websocket(gpt_response: str, websocket_url: str = "ws://localhost:8001/ws/gpt"):
+    """
+    Stream GPT response back via websocket.
+
+    Args:
+        gpt_response: The GPT response text to stream
+        websocket_url: WebSocket URL to connect to
+    """
+    try:
+        import websockets
+        from datetime import datetime
+
+        async with websockets.connect(websocket_url) as websocket:
+            # Send the GPT response as a message
+            message = {
+                "type": "gpt_response",
+                "content": gpt_response,
+                "timestamp": datetime.now().isoformat()
+            }
+            await websocket.send(json.dumps(message))
+
+            # Wait for acknowledgment
+            response = await websocket.recv()
+            ack_message = json.loads(response)
+            print(f"GPT response acknowledged: {ack_message.get('message', 'Unknown')}", file=sys.stderr)
+
+    except Exception as e:
+        print(f"Error streaming GPT response via websocket: {e}", file=sys.stderr)
 
 
 @dataclass(frozen=True)
@@ -298,6 +383,9 @@ def handle_microphone_tool(request_id: Optional[int]) -> JSONDict:
     target_path = Path.cwd() / "microphone_capture.wav"
     sf.write(target_path, recording, sample_rate)
 
+    # Determine if this is a "true signal" - significant audio activity
+    true_signal = rms > 0.02 and peak > 0.1  # Audio above baseline noise
+
     payload = {
         "message": "Captured 5 seconds from microphone",
         "durationSeconds": duration_seconds,
@@ -306,7 +394,30 @@ def handle_microphone_tool(request_id: Optional[int]) -> JSONDict:
         "peak": peak,
         "loudnessCategory": loudness,
         "savedFile": str(target_path),
+        "trueSignal": true_signal,
     }
+
+    # If true signal detected, trigger GPT processing in background
+    if true_signal:
+        def trigger_gpt_processing():
+            try:
+                # Run the async GPT processing
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+                # Process transcript with GPT
+                gpt_response = loop.run_until_complete(process_transcript_with_gpt())
+                payload["gptResponse"] = gpt_response
+
+                # Stream response via websocket
+                loop.run_until_complete(stream_gpt_response_via_websocket(gpt_response))
+                loop.close()
+
+            except Exception as e:
+                print(f"Error in GPT processing: {e}", file=sys.stderr)
+
+        # Run in background thread to not block the response
+        threading.Thread(target=trigger_gpt_processing, daemon=True).start()
 
     return {
         "jsonrpc": "2.0",

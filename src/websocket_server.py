@@ -23,6 +23,34 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+# Store active WebSocket connections for GPT responses
+active_connections: list[WebSocket] = []
+
+
+async def add_connection(websocket: WebSocket):
+    """Add a WebSocket connection to the active connections list."""
+    active_connections.append(websocket)
+
+
+async def remove_connection(websocket: WebSocket):
+    """Remove a WebSocket connection from the active connections list."""
+    if websocket in active_connections:
+        active_connections.remove(websocket)
+
+
+async def broadcast_gpt_response(message: dict):
+    """Broadcast GPT response to all active WebSocket connections."""
+    disconnected = []
+    for connection in active_connections:
+        try:
+            await connection.send_json(message)
+        except Exception:
+            disconnected.append(connection)
+
+    # Remove disconnected connections
+    for connection in disconnected:
+        await remove_connection(connection)
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -46,6 +74,7 @@ async def websocket_endpoint(websocket: WebSocket):
         websocket (WebSocket): The WebSocket connection object.
     """
     await websocket.accept()
+    await add_connection(websocket)
     logger.info("WebSocket connection accepted.")
 
     try:
@@ -104,12 +133,58 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         logger.info("Client disconnected.")
+        await remove_connection(websocket)
         # Flush any remaining audio in the buffer before closing
         if 'stt_processor' in locals():
             await stt_processor.flush_buffer()
     except Exception as e:
         logger.error(f"An error occurred: {e}")
+        await remove_connection(websocket)
         # Flush any remaining audio in the buffer before closing
         if 'stt_processor' in locals():
             await stt_processor.flush_buffer()
+        await websocket.close(code=1011)
+
+
+@app.websocket("/ws/gpt")
+async def gpt_websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint specifically for GPT response streaming.
+
+    This endpoint handles connections from the Dedalus server to stream
+    GPT responses back to connected clients.
+
+    Args:
+        websocket (WebSocket): The WebSocket connection object.
+    """
+    await websocket.accept()
+    logger.info("GPT WebSocket connection accepted.")
+
+    try:
+        while True:
+            # Wait for GPT response messages
+            message = await websocket.receive_json()
+
+            if message.get("type") == "gpt_response":
+                logger.info(f"Received GPT response: {message.get('content', '')[:50]}...")
+
+                # Broadcast the GPT response to all active audio connections
+                broadcast_message = {
+                    "type": "gpt_response",
+                    "content": message.get("content", ""),
+                    "timestamp": message.get("timestamp", ""),
+                    "source": "dedalus_gpt"
+                }
+                await broadcast_gpt_response(broadcast_message)
+
+                # Send acknowledgment back
+                await websocket.send_json({
+                    "type": "acknowledgment",
+                    "message": "GPT response broadcasted successfully"
+                })
+
+    except WebSocketDisconnect:
+        logger.info("GPT WebSocket client disconnected.")
+    except Exception as e:
+        logger.error(f"An error occurred in GPT WebSocket: {e}")
         await websocket.close(code=1011)
