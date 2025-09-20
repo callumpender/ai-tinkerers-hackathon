@@ -16,7 +16,7 @@ export interface AgentSettings {
 
 export type ConversationStatus = "idle" | "listening" | "speaking" | "paused";
 
-const WEBSOCKET_URL = "ws://localhost:8000/ws";
+const WEBSOCKET_URL = "ws://localhost:8001/ws";
 
 export const AudioDashboard = () => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
