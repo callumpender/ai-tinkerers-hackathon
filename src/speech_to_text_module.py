@@ -14,6 +14,9 @@ from typing import Optional, Callable
 import tempfile
 import wave
 from elevenlabs.client import ElevenLabs
+import subprocess
+
+os.environ["ELEVENLABS_API_KEY"] = "sk_92c8eb8f51ac1a6b7cf9ddb6b9eb2f0fc9afb5ee28895cf7"
 
 
 class SpeechToTextProcessor:
@@ -31,7 +34,7 @@ class SpeechToTextProcessor:
         sample_rate: int = 16000,
         channels: int = 1,
         sample_width: int = 2,
-        log_file_path: str = "transcription_log.txt"
+        log_file_path: str = "transcription_log.txt",
     ):
         """
         Initialize the Speech-to-Text processor.
@@ -71,20 +74,110 @@ class SpeechToTextProcessor:
 
     async def add_audio_chunk(self, audio_data: bytes):
         """
-        Add an audio chunk to the buffer for processing.
+        Process a complete audio batch for transcription.
+
+        Since we're now receiving complete 2-second WebM batches from the frontend,
+        we process each batch directly instead of buffering.
 
         Args:
-            audio_data: Raw audio data bytes.
+            audio_data: Complete WebM audio batch bytes.
         """
-        if self.buffer_start_time is None:
-            self.buffer_start_time = asyncio.get_event_loop().time()
+        self.logger.info(f"🎯 Processing audio batch: {len(audio_data)} bytes")
 
-        self.audio_buffer.write(audio_data)
+        # Process this batch directly
+        await self._process_webm_batch(audio_data)
 
-        # Check if buffer duration has been reached
-        current_time = asyncio.get_event_loop().time()
-        if current_time - self.buffer_start_time >= self.buffer_duration:
-            await self._process_buffer()
+    async def _process_webm_batch(self, webm_data: bytes):
+        """
+        Process a complete WebM audio batch for transcription.
+
+        Args:
+            webm_data: Complete WebM audio data bytes.
+        """
+        if len(webm_data) == 0:
+            self.logger.warning("⚠️ Empty WebM batch received")
+            return
+
+        try:
+            self.logger.info("🔄 Converting WebM batch to WAV for ElevenLabs...")
+
+            # Create temporary files
+            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as webm_file:
+                webm_path = webm_file.name
+                webm_file.write(webm_data)
+
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as wav_file:
+                wav_path = wav_file.name
+
+            # Convert WebM to WAV using ffmpeg
+            success = await self._convert_webm_to_wav(webm_path, wav_path)
+
+            if success:
+                # Transcribe the converted WAV file
+                transcription = await self._transcribe_file(wav_path)
+
+                if transcription and transcription.strip():
+                    self.logger.info(f"✅ Transcription successful: '{transcription}'")
+                    await self._handle_transcription(transcription)
+                else:
+                    self.logger.warning("⚠️ No transcription returned or empty result")
+            else:
+                self.logger.error("❌ Failed to convert WebM to WAV")
+
+            # Clean up temp files
+            try:
+                os.unlink(webm_path)
+                os.unlink(wav_path)
+            except:
+                pass
+
+        except Exception as e:
+            self.logger.error(f"❌ Error processing WebM batch: {e}")
+
+    async def _convert_webm_to_wav(self, webm_path: str, wav_path: str) -> bool:
+        """
+        Convert WebM file to WAV format using ffmpeg.
+
+        Args:
+            webm_path: Path to input WebM file
+            wav_path: Path to output WAV file
+
+        Returns:
+            True if conversion successful, False otherwise
+        """
+        try:
+            # Use ffmpeg to convert WebM to WAV with specific settings for ElevenLabs
+            cmd = [
+                "ffmpeg",
+                "-i",
+                webm_path,
+                "-ar",
+                "16000",  # 16kHz sample rate
+                "-ac",
+                "1",  # mono channel
+                "-y",  # overwrite output file
+                wav_path,
+            ]
+
+            self.logger.info(f"🛠️ Running ffmpeg conversion: {' '.join(cmd)}")
+
+            # Run ffmpeg conversion
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, lambda: subprocess.run(cmd, capture_output=True, text=True))
+
+            if result.returncode == 0:
+                self.logger.info("✅ WebM to WAV conversion successful")
+                return True
+            else:
+                self.logger.error(f"❌ ffmpeg failed: {result.stderr}")
+                return False
+
+        except FileNotFoundError:
+            self.logger.error("❌ ffmpeg not found. Please install ffmpeg to convert WebM to WAV")
+            return False
+        except Exception as e:
+            self.logger.error(f"❌ Error converting WebM to WAV: {e}")
+            return False
 
     async def _process_buffer(self):
         """Process the current audio buffer and transcribe it."""
@@ -101,7 +194,7 @@ class SpeechToTextProcessor:
                 temp_path = temp_file.name
 
                 # Write WAV file
-                with wave.open(temp_path, 'wb') as wav_file:
+                with wave.open(temp_path, "wb") as wav_file:
                     wav_file.setnchannels(self.channels)
                     wav_file.setsampwidth(self.sample_width)
                     wav_file.setframerate(self.sample_rate)
@@ -139,17 +232,17 @@ class SpeechToTextProcessor:
             loop = asyncio.get_event_loop()
 
             def sync_transcribe():
-                with open(file_path, 'rb') as audio_file:
+                with open(file_path, "rb") as audio_file:
                     return self.client.speech_to_text.convert(
                         file=audio_file,
                         model_id="scribe_v1",
-                        language_code="eng"  # You can make this configurable
+                        language_code="eng",  # You can make this configurable
                     )
 
             result = await loop.run_in_executor(None, sync_transcribe)
 
             # Extract text from the result
-            if hasattr(result, 'text'):
+            if hasattr(result, "text"):
                 return result.text
             elif isinstance(result, str):
                 return result
@@ -176,11 +269,12 @@ class SpeechToTextProcessor:
         """Log transcription to file."""
         try:
             import datetime
+
             timestamp = datetime.datetime.now().isoformat()
             log_entry = f"[{timestamp}] {transcription}\n"
 
             # Append to log file
-            with open(self.log_file_path, 'a', encoding='utf-8') as f:
+            with open(self.log_file_path, "a", encoding="utf-8") as f:
                 f.write(log_entry)
 
         except Exception as e:

@@ -28,12 +28,6 @@ export const AudioDashboard = () => {
   const [recommendations, setRecommendations] = useState<string[]>([]);
   const [conversationMessages, setConversationMessages] = useState<ConversationMessage[]>([]);
 
-  const { isRecording, startRecording, stopRecording, audioLevel } = useAudioCapture({
-    onAudioData: useCallback((audioData: ArrayBuffer) => {
-      sendAudioData(audioData);
-    }, [])
-  });
-
   const { isConnected, connect, disconnect, sendAudioData } = useWebSocket({
     url: WEBSOCKET_URL,
     prompt: agentSettings.scenario,
@@ -56,6 +50,20 @@ export const AudioDashboard = () => {
     }, [])
   });
 
+  const { isRecording, startRecording, stopRecording, audioLevel } = useAudioCapture({
+    onAudioData: useCallback((audioData: ArrayBuffer) => {
+      sendAudioData(audioData);
+    }, [sendAudioData]),
+    onRecordingComplete: useCallback(() => {
+      console.log('✅ Frontend concatenated file created - now disconnecting WebSocket for backend file');
+      // Disconnect WebSocket after frontend file is ready
+      setTimeout(() => {
+        disconnect();
+        console.log('WebSocket disconnected - backend should create concatenated file');
+      }, 200);
+    }, [disconnect])
+  });
+
   const handleStartSession = async () => {
     try {
       await connect();
@@ -75,8 +83,11 @@ export const AudioDashboard = () => {
   };
 
   const handleStopSession = () => {
+    console.log('Stopping session - this should trigger concatenated file creation');
+
+    // Stop recording (this will trigger onRecordingComplete callback which handles WebSocket disconnect)
     stopRecording();
-    disconnect();
+
     setConversationStatus("idle");
     setRecommendations([]);
 
