@@ -10,7 +10,6 @@ data/
 *.doc
 *.docx
 *.pdf
-*.png
 *.jpg
 *.jpeg
 *.wav
