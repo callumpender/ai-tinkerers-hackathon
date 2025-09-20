@@ -25,9 +25,16 @@ export const ConversationHistory = ({ messages, status, onClearHistory }: Conver
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     if (scrollAreaRef.current) {
-      setTimeout(() => {
-        scrollAreaRef.current!.scrollTop = scrollAreaRef.current!.scrollHeight;
-      }, 100);
+      // Force scroll to bottom immediately and after a small delay
+      const scrollToBottom = () => {
+        if (scrollAreaRef.current) {
+          scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+        }
+      };
+
+      scrollToBottom();
+      setTimeout(scrollToBottom, 50);
+      setTimeout(scrollToBottom, 150);
     }
   }, [messages]);
 
@@ -58,8 +65,8 @@ export const ConversationHistory = ({ messages, status, onClearHistory }: Conver
   };
 
   return (
-    <Card className="h-full flex flex-col border-2">
-      <div className="p-4 border-b">
+    <Card className="h-full flex flex-col border-2 min-h-0">
+      <div className="p-4 border-b flex-shrink-0">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">Agent Recommendations</h3>
           <div className="flex items-center gap-2">
@@ -88,8 +95,8 @@ export const ConversationHistory = ({ messages, status, onClearHistory }: Conver
 
       <div
         ref={scrollAreaRef}
-        className="flex-1 p-4 overflow-y-auto"
-        style={{ maxHeight: 'calc(100vh - 200px)' }}
+        className="flex-1 p-4 overflow-y-scroll scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+        style={{ maxHeight: 'calc(100vh - 300px)', minHeight: '400px' }}
       >
         <div className="space-y-3">
           {messages.length === 0 ? (
@@ -118,7 +125,7 @@ export const ConversationHistory = ({ messages, status, onClearHistory }: Conver
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-medium">
                       {message.type === 'user' ? 'You' :
-                       message.type === 'agent' ? 'AI Assistant' : 'System'}
+                       message.type === 'agent' ? 'Agent Recommendation' : 'System'}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {formatTime(message.timestamp)}

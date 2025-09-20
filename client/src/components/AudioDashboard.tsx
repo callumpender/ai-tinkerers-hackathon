@@ -121,8 +121,8 @@ export const AudioDashboard = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Audio Stream Dashboard</h1>
-            <p className="text-muted-foreground">Real-time conversation analysis and agent recommendations</p>
+            <h1 className="text-3xl font-bold">lull AI</h1>
+            <p className="text-muted-foreground">Agentic conversation assistant. </p>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -197,7 +197,7 @@ export const AudioDashboard = () => {
           </div>
 
           {/* Agent Recommendations - Main Focus */}
-          <div className="lg:col-span-2 h-full">
+          <div className="lg:col-span-2 h-full min-h-0">
             <ConversationHistory
               messages={conversationMessages}
               status={conversationStatus}
@@ -207,7 +207,7 @@ export const AudioDashboard = () => {
         </div>
 
         {/* Session Info */}
-        <Card className="p-4 border-2">
+        <Card className="p-4 border-2 flex-shrink-0">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-xl font-bold text-primary">{agentSettings.pauseDuration}s</div>
