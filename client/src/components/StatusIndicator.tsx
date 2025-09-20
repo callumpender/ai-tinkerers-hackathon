@@ -45,6 +45,14 @@ export const StatusIndicator = ({ status, audioLevel, isRecording }: StatusIndic
         {getStatusIcon()}
       </div>
       {getAudioLevelIndicator()}
+      <div className="mt-4 flex flex-col items-center space-y-1">
+        <p className="text-xs text-muted-foreground">Powered by</p>
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-medium text-primary">ElevenLabs</span>
+          <span className="text-xs text-muted-foreground">+</span>
+          <span className="text-sm font-medium text-primary">Dedalus Labs</span>
+        </div>
+      </div>
     </div>
   );
 };

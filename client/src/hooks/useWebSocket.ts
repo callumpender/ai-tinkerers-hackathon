@@ -78,10 +78,16 @@ export const useWebSocket = ({
           if (data.hasOwnProperty('is_there_a_pause')) {
             if (data.is_there_a_pause) {
               onStatusUpdate("paused");
-              // Generate a mock recommendation when pause is detected
-              onRecommendations(["Consider summarizing the key points discussed so far"]);
+              // Use actual transcription from backend
+              if (data.transcription && data.transcription.trim()) {
+                onRecommendations([data.transcription]);
+              }
             } else {
               onStatusUpdate("listening");
+              // Also handle regular transcription updates
+              if (data.transcription && data.transcription.trim()) {
+                onRecommendations([data.transcription]);
+              }
             }
           } else {
             console.log('Unknown message format:', data);

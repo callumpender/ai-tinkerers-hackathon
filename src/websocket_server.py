@@ -12,6 +12,8 @@ in the audio and the processed audio stream.
 
 import asyncio
 import logging
+import time
+import random
 from speech_to_text_module import SpeechToTextProcessor
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -67,11 +69,18 @@ async def websocket_endpoint(websocket: WebSocket):
 
         batch_counter = 0
 
-        # Set up transcription callback
+        # Set up transcription callback and accumulated transcript
         latest_transcription = {"text": ""}
+        accumulated_transcript = []
+
+        # Random pause timing
+        last_pause_time = time.time()
+        next_pause_interval = random.uniform(5, 15)  # Random between 5-15 seconds
 
         def transcription_callback(text: str):
             latest_transcription["text"] = text
+            if text.strip():
+                accumulated_transcript.append(text)
             logger.info(f"New transcription available: {text}")
 
         stt_processor.set_transcription_callback(transcription_callback)
@@ -88,20 +97,33 @@ async def websocket_endpoint(websocket: WebSocket):
                 batch_counter += 1
                 logger.info(f"Received audio chunk #{batch_counter}: {len(audio_chunk)} bytes")
 
-                # Process the 100ms chunk for speech-to-text
+                # Process the audio chunk for speech-to-text
                 await stt_processor.add_audio_chunk(audio_chunk)
 
-                # Simple pause detection based on audio chunk size
-                is_there_a_pause = len(audio_chunk) < 1024  # Consider small chunks as potential pauses
+                # Check if it's time for a random pause
+                current_time = time.time()
+                time_since_last_pause = current_time - last_pause_time
 
-                # Send response back with transcription results
-                response_data = {"is_there_a_pause": is_there_a_pause, "transcription": latest_transcription["text"]}
+                if time_since_last_pause >= next_pause_interval:
+                    # Time for a pause event - send accumulated transcript
+                    full_transcript = " ".join(accumulated_transcript)
+                    response_data = {"is_there_a_pause": True, "transcription": full_transcript}
+                    logger.info(f"Pause event triggered. Full transcript: '{full_transcript}'")
+
+                    # Reset for next pause interval
+                    last_pause_time = current_time
+                    next_pause_interval = random.uniform(5, 15)
+                    accumulated_transcript.clear()
+                else:
+                    # Regular response with latest transcription
+                    response_data = {"is_there_a_pause": False, "transcription": latest_transcription["text"]}
+
                 await websocket.send_json(response_data)
 
                 if latest_transcription["text"]:
                     logger.info(f"Transcription: '{latest_transcription['text']}'")
 
-                # Reset transcription after sending
+                # Reset latest transcription after sending
                 latest_transcription["text"] = ""
 
             except asyncio.TimeoutError:
