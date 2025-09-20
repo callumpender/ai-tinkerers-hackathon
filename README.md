@@ -35,6 +35,24 @@ Relying on the remote CI pipeline to check your code leads to slow development i
 - linting & formatting checks : `poetry run pre-commit run --all-files`
 - tests: `poetry run pytest tests/`
 
+## Streaming Client
+
+This project includes a Dedalus streaming client that connects to a WebSocket server.
+
+### Running the Example
+
+1.  **Start the server:** The included server in `src/Dedalus/src/server.ts` is configured to listen for WebSocket connections. To start it, navigate to the `src/Dedalus` directory and run:
+    ```bash
+    npm install
+    npm run build
+    npm start
+    ```
+2.  **Run the client:** In a separate terminal, navigate to `src/Dedalus` and run the example client:
+    ```bash
+    node dist/streaming-client-example.js
+    ```
+
+The client will connect to the server, send a dummy audio chunk, and close the connection.
 
 ## License
 
