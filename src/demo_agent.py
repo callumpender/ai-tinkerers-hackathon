@@ -9,6 +9,7 @@ import logging
 import threading
 import time
 from unittest.mock import Mock
+from live_vad import LiveVADProcessor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -26,14 +27,25 @@ class MockWebSocket:
         logger.info(f"MockWebSocket received: {json.dumps(data, indent=2)}")
         return True
 
-def demo_delayed_prompt_sender(prompt: str, websocket: MockWebSocket, log_file_path: str):
+def demo_delayed_prompt_sender(prompt: str, websocket: MockWebSocket, log_file_path: str, vad_processor: LiveVADProcessor, debug: bool = False):
     """
     Demo version of the delayed_prompt_sender function for testing.
     This is a simplified version that doesn't use OpenAI but demonstrates the tool logic.
     """
     
     def read_file():
-        """Read content from the log file."""
+        """Read content from the log file or return random content if debug mode."""
+        if debug:
+            # Return random content for debugging
+            import random
+            debug_options = [
+                "I'm feeling confident about my presentation today. I think I've prepared well and I'm ready to share my ideas.",
+                "Um, I'm not sure if this is the right approach. Maybe we should consider other options before moving forward."
+            ]
+            content = random.choice(debug_options)
+            logger.info(f"Agent read DEBUG content: {content[:50]}...")
+            return content
+        
         try:
             with open(log_file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -79,18 +91,21 @@ def demo_delayed_prompt_sender(prompt: str, websocket: MockWebSocket, log_file_p
     
     def check_lull():
         """
-        Demo version of check_lull that simulates different silence states.
+        Check for silence periods using VAD processor.
+        
+        Raises:
+            ValueError: If vad_processor is not provided
         """
-        import random
+        if vad_processor is None:
+            raise ValueError("VAD processor is required for check_lull function. Please provide a valid LiveVADProcessor instance.")
         
-        # Simulate different silence patterns for demo
-        scenarios = [
-            {"silence5": False, "silence20": False},  # No silence
-            {"silence5": True, "silence20": False},   # Short pause (analyze but don't send)
-            {"silence5": True, "silence20": True},    # Long pause (analyze and send)
-        ]
+        # Use real VAD processor
+        silence_500ms, silence_2000ms = vad_processor.get_silence_flags()
+        result = {
+            "silence5": silence_500ms,   # 0.5+ seconds of silence
+            "silence20": silence_2000ms  # 2.0+ seconds of silence
+        }
         
-        result = random.choice(scenarios)
         logger.info(f"Lull check result: {result}")
         
         # Send lull status to websocket to keep frontend informed
@@ -123,7 +138,7 @@ def demo_delayed_prompt_sender(prompt: str, websocket: MockWebSocket, log_file_p
             return False
     
     # Demo agent logic - simplified version of the OpenAI workflow
-    time.sleep(10)  # Initial delay
+    time.sleep(4)  # Initial delay
     logger.info("Demo agent starting continuous monitoring...")
     
     try:
@@ -173,31 +188,52 @@ def main():
     # Create mock websocket
     mock_ws = MockWebSocket()
     
+    # Create and start VAD processor
+    vad_processor = LiveVADProcessor(
+        sample_rate=16000,
+        hop_size=256,
+        threshold=0.5
+    )
+    vad_processor.start()
+    print("🎤 Started VAD processor for real silence detection")
+    
+    # Check for debug mode (can be set via environment variable or hardcoded for demo)
+    import os
+    debug_mode = os.getenv('DEBUG_MODE', 'false').lower() == 'true'
+    if debug_mode:
+        print("🐛 DEBUG MODE: Agent will use random content instead of reading files")
+    
     # Create and start the agent thread
     agent_thread = threading.Thread(
         target=demo_delayed_prompt_sender,
-        args=(prompt, mock_ws, log_file_path),
+        args=(prompt, mock_ws, log_file_path, vad_processor, debug_mode),
         daemon=True
     )
     
     print(f"📝 Prompt: {prompt}")
     print(f"📁 Log file: {log_file_path}")
-    print(f"⏰ Agent will start in 10 seconds...")
+    print("⏰ Agent will start in 4 seconds...")
     print()
     
     agent_thread.start()
     
-    # Wait for agent to complete
-    agent_thread.join()
+    try:
+        # Wait for agent to complete
+        agent_thread.join()
+        
+        print("\n" + "=" * 50)
+        print("📊 Demo Results Summary:")
+        print(f"Total messages sent: {len(mock_ws.sent_messages)}")
+        
+        for i, message in enumerate(mock_ws.sent_messages, 1):
+            print(f"  Message {i}: {message}")
+        
+        print("\n✅ Demo completed!")
     
-    print("\n" + "=" * 50)
-    print("📊 Demo Results Summary:")
-    print(f"Total messages sent: {len(mock_ws.sent_messages)}")
-    
-    for i, message in enumerate(mock_ws.sent_messages, 1):
-        print(f"  Message {i}: {message}")
-    
-    print("\n✅ Demo completed!")
+    finally:
+        # Clean up VAD processor
+        vad_processor.stop()
+        print("🛑 Stopped VAD processor")
 
 if __name__ == "__main__":
     main()

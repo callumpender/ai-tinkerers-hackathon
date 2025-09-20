@@ -14,11 +14,13 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import time
 import random
 import threading
 import time
 from speech_to_text_module import SpeechToTextProcessor
+from live_vad import LiveVADProcessor
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from openai import OpenAI
@@ -30,7 +32,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 
-def delayed_prompt_sender(prompt: str, websocket: WebSocket, log_file_path: str):
+def delayed_prompt_sender(prompt: str, websocket: WebSocket, log_file_path: str, vad_processor: LiveVADProcessor, debug: bool = False):
     """
     Agent that sleeps for 10 seconds then uses OpenAI to analyze transcription data.
     Has access to read_file and clear_file tools.
@@ -39,9 +41,21 @@ def delayed_prompt_sender(prompt: str, websocket: WebSocket, log_file_path: str)
         prompt (str): The original prompt
         websocket (WebSocket): The WebSocket connection
         log_file_path (str): Path to the transcription log file
+        vad_processor (LiveVADProcessor): The VAD processor for checking silence flags
+        debug (bool): If True, read_file returns random content instead of reading actual file
     """
     def read_file():
-        """Read content from the log file."""
+        """Read content from the log file or return random content if debug mode."""
+        if debug:
+            # Return random content for debugging
+            debug_options = [
+                "I'm feeling confident about my presentation today. I think I've prepared well and I'm ready to share my ideas.",
+                "Um, I'm not sure if this is the right approach. Maybe we should consider other options before moving forward."
+            ]
+            content = random.choice(debug_options)
+            logger.info(f"Agent read DEBUG content: {content[:50]}...")
+            return content
+        
         try:
             with open(log_file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -67,22 +81,17 @@ def delayed_prompt_sender(prompt: str, websocket: WebSocket, log_file_path: str)
     
     def check_lull():
         """
-        Check for silence periods in the audio stream.
-        This is a dummy function that will be replaced with MCP integration.
+        Check for silence periods in the audio stream using the VAD processor.
         
         Returns:
             dict: Contains silence5 and silence20 flags
         """
-        # Dummy implementation - in real version this would analyze audio timing
-        import random
-        
-        # Simulate checking for 5-second and 20-second silence periods
-        silence5 = random.choice([True, False])  # 0.5+ seconds of silence
-        silence20 = random.random() < 0.3 if silence5 else False  # 30% chance of 2+ seconds (only if 0.5+ is True)
+        # Get actual silence flags from the VAD processor
+        silence_500ms, silence_2000ms = vad_processor.get_silence_flags()
         
         result = {
-            "silence5": silence5,
-            "silence20": silence20
+            "silence5": silence_500ms,  # 0.5+ seconds of silence
+            "silence20": silence_2000ms  # 2.0+ seconds of silence
         }
         
         logger.info(f"Lull check result: {result}")
@@ -178,7 +187,7 @@ def delayed_prompt_sender(prompt: str, websocket: WebSocket, log_file_path: str)
         }
     ]
     
-    time.sleep(10)
+    time.sleep(4)
     
     try:
         # Initialize OpenAI client
@@ -340,10 +349,24 @@ async def websocket_endpoint(websocket: WebSocket):
             log_file_path=log_file_path
         )
 
+        # Initialize VAD processor for silence detection
+        vad_processor = LiveVADProcessor(
+            sample_rate=16000,
+            hop_size=256,
+            threshold=0.5
+        )
+        vad_processor.start()
+        logger.info("Started VAD processor for silence detection")
+
+        # Check for debug mode (can be set via environment variable)
+        debug_mode = True
+        if debug_mode:
+            logger.info("🐛 DEBUG MODE")
+        
         # Start the delayed prompt sender thread (agent)
         agent_thread = threading.Thread(
             target=delayed_prompt_sender,
-            args=(prompt, websocket, log_file_path),
+            args=(prompt, websocket, log_file_path, vad_processor, debug_mode),
             daemon=True
         )
         agent_thread.start()
@@ -407,12 +430,22 @@ async def websocket_endpoint(websocket: WebSocket):
         if "stt_processor" in locals():
             await stt_processor.flush_buffer()
             logger.info("Flushed remaining audio from speech-to-text buffer")
+        
+        # Stop VAD processor
+        if "vad_processor" in locals():
+            vad_processor.stop()
+            logger.info("Stopped VAD processor")
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         logger.info(
             f"Session summary: Processed {batch_counter if 'batch_counter' in locals() else 0} audio batches before error"
         )
+        
+        # Stop VAD processor on error
+        if "vad_processor" in locals():
+            vad_processor.stop()
+            logger.info("Stopped VAD processor due to error")
 
         # Flush any remaining audio in the buffer before closing
         if "stt_processor" in locals():
