@@ -5,6 +5,8 @@ interface UseWebSocketProps {
   url: string;
   onStatusUpdate: (status: ConversationStatus) => void;
   onRecommendations: (recommendations: string[]) => void;
+  prompt?: string;
+  duration?: number;
 }
 
 interface UseWebSocketReturn {
@@ -18,7 +20,9 @@ interface UseWebSocketReturn {
 export const useWebSocket = ({
   url,
   onStatusUpdate,
-  onRecommendations
+  onRecommendations,
+  prompt = "Default conversation analysis prompt",
+  duration = 30
 }: UseWebSocketProps): UseWebSocketReturn => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +30,7 @@ export const useWebSocket = ({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
+  const initialMessageSent = useRef(false);
 
   const connect = useCallback(async () => {
     try {
@@ -42,35 +47,44 @@ export const useWebSocket = ({
         console.log('WebSocket connected');
         setIsConnected(true);
         reconnectAttempts.current = 0;
-        onStatusUpdate("listening");
+        initialMessageSent.current = false;
+
+        // Send initial message with prompt and duration as required by Python server
+        const initialMessage = {
+          prompt: prompt,
+          duration: duration
+        };
+
+        if (wsRef.current) {
+          wsRef.current.send(JSON.stringify(initialMessage));
+          initialMessageSent.current = true;
+          onStatusUpdate("listening");
+        }
       };
 
       wsRef.current.onmessage = (event) => {
         try {
+          // Handle binary message (processed audio data)
+          if (event.data instanceof ArrayBuffer) {
+            console.log('Received processed audio data:', event.data.byteLength, 'bytes');
+            // For now, we just log the processed audio data
+            // Could be used for playback or further processing
+            return;
+          }
+
+          // Handle JSON message (pause detection)
           const data = JSON.parse(event.data);
 
-          // Handle different message types from backend
-          switch (data.type) {
-            case 'status':
-              onStatusUpdate(data.status as ConversationStatus);
-              break;
-            case 'recommendations':
-              onRecommendations(data.recommendations || []);
-              break;
-            case 'pause_detected':
+          if (data.hasOwnProperty('is_there_a_pause')) {
+            if (data.is_there_a_pause) {
               onStatusUpdate("paused");
-              if (data.recommendations) {
-                onRecommendations(data.recommendations);
-              }
-              break;
-            case 'speech_detected':
-              onStatusUpdate("speaking");
-              break;
-            case 'error':
-              setError(data.message || 'Server error');
-              break;
-            default:
-              console.log('Unknown message type:', data.type);
+              // Generate a mock recommendation when pause is detected
+              onRecommendations(["Consider summarizing the key points discussed so far"]);
+            } else {
+              onStatusUpdate("listening");
+            }
+          } else {
+            console.log('Unknown message format:', data);
           }
         } catch (err) {
           console.error('Error parsing WebSocket message:', err);
@@ -112,7 +126,7 @@ export const useWebSocket = ({
       setError(errorMessage);
       throw err;
     }
-  }, [url, onStatusUpdate, onRecommendations]);
+  }, [url, onStatusUpdate, onRecommendations, prompt, duration]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -131,17 +145,11 @@ export const useWebSocket = ({
   }, []);
 
   const sendAudioData = useCallback((audioData: ArrayBuffer) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      // Convert ArrayBuffer to base64 for JSON transmission
-      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioData)));
-
-      const message = {
-        type: 'audio_data',
-        data: base64Audio,
-        timestamp: Date.now()
-      };
-
-      wsRef.current.send(JSON.stringify(message));
+    if (wsRef.current?.readyState === WebSocket.OPEN && initialMessageSent.current) {
+      // Send raw binary audio data as expected by Python server
+      wsRef.current.send(audioData);
+    } else if (!initialMessageSent.current) {
+      console.warn('WebSocket not ready, initial message not sent yet');
     } else {
       console.warn('WebSocket not connected, cannot send audio data');
     }

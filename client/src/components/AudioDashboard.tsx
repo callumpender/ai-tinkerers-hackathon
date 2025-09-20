@@ -16,7 +16,7 @@ export interface AgentSettings {
 
 export type ConversationStatus = "idle" | "listening" | "speaking" | "paused";
 
-const WEBSOCKET_URL = "ws://localhost:8000/audio-stream";
+const WEBSOCKET_URL = "ws://localhost:8000/ws";
 
 export const AudioDashboard = () => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -36,6 +36,8 @@ export const AudioDashboard = () => {
 
   const { isConnected, connect, disconnect, sendAudioData } = useWebSocket({
     url: WEBSOCKET_URL,
+    prompt: agentSettings.scenario,
+    duration: Math.ceil(agentSettings.pauseDuration),
     onStatusUpdate: useCallback((status: ConversationStatus) => {
       setConversationStatus(status);
     }, []),
