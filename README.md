@@ -19,9 +19,14 @@ npm run dev
 This project makes use of `pyenv` for python version management and `uv` for virtual environment/ dependency management. To get started with these tools, you can refer to [Python dev](https://www.notion.so/facultyai/Tips-and-tricks-027fd336f3b34e3ba4f487899826bb12?pvs=4) in Notion.
 
 ### Prerequisites
-Make sure you have `uv` installed. If you don't have it, install it using:
+Make sure you have `uv` and `ffmpeg` installed:
+
 ```bash
+# Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install ffmpeg (required for audio format conversion)
+brew install ffmpeg
 ```
 
 ### Installation
@@ -30,7 +35,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 git clone <repo_url>
 cd <repo>
 
-# Install PortAudio
+# Install PortAudio (required for audio capture)
 brew install portaudio
 
 ```
@@ -70,6 +75,8 @@ This project includes a standalone speech-to-text module using the ElevenLabs AP
 
 ### Features
 
+- **Real-time Audio Processing**: Captures audio in 2-second batches for transcription
+- **WebM to WAV Conversion**: Automatically converts WebM audio to WAV format using ffmpeg
 - **Multi-format Support**: MP3, WAV, FLAC, AAC, OGG, WebM audio + MP4, AVI, MKV video
 - **Multiple Input Methods**: File paths or audio buffers
 - **Flexible Output**: JSON, text, SRT, VTT, or verbose JSON responses
@@ -133,21 +140,14 @@ This project includes a standalone speech-to-text module using the ElevenLabs AP
    uv run uvicorn src.websocket_server:app --host 0.0.0.0 --port 8001
    ```
 
-4. **Run the microphone client (in a new terminal):**
+4. **Run the frontend client (in a new terminal):**
    ```bash
-
-   # Install PortAudio
-   brew install portaudio
-
-   # Then try installing your package again
-   uv sync
-
-   # Install audio dependencies first
-   uv add pyaudio websockets
-
-   # Run the microphone client
-   uv run python src/microphone_client.py
+   cd client
+   npm install
+   npm run dev
    ```
+
+   Then open your browser to `http://localhost:8080` and click "Start Session" to begin audio capture and transcription.
 
 #### Live Microphone Transcription
 

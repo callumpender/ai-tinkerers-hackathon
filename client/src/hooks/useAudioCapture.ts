@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 
 interface UseAudioCaptureProps {
   onAudioData: (audioData: ArrayBuffer) => void;
+  onRecordingComplete?: () => void;
   sampleRate?: number;
 }
 
@@ -15,6 +16,7 @@ interface UseAudioCaptureReturn {
 
 export const useAudioCapture = ({
   onAudioData,
+  onRecordingComplete,
   sampleRate = 16000
 }: UseAudioCaptureProps): UseAudioCaptureReturn => {
   const [isRecording, setIsRecording] = useState(false);
@@ -49,6 +51,11 @@ export const useAudioCapture = ({
     try {
       setError(null);
 
+      // Check if mediaDevices is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('MediaDevices API not supported in this browser');
+      }
+
       // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -76,20 +83,27 @@ export const useAudioCapture = ({
 
       const audioChunks: Blob[] = [];
 
-      mediaRecorderRef.current.ondataavailable = (event) => {
+      mediaRecorderRef.current.ondataavailable = async (event) => {
         if (event.data.size > 0) {
+          // Send each 100ms chunk immediately to backend
+          const arrayBuffer = await event.data.arrayBuffer();
+          onAudioData(arrayBuffer);
           audioChunks.push(event.data);
         }
       };
 
       mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const arrayBuffer = await audioBlob.arrayBuffer();
-        onAudioData(arrayBuffer);
+        // Clear chunks when recording stops
+        audioChunks.length = 0;
+
+        // Notify completion
+        if (onRecordingComplete) {
+          onRecordingComplete();
+        }
       };
 
-      // Start recording with small time slices for real-time streaming
-      mediaRecorderRef.current.start(100); // 100ms chunks
+      // Start recording in 100ms batches for continuous streaming
+      mediaRecorderRef.current.start(100); // 100ms batches
       setIsRecording(true);
 
       // Start audio level monitoring
