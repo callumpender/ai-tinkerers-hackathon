@@ -23,27 +23,21 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 #Clone the repository using your preferred method(SSH vs HTTPS)
 git clone <repo_url>
 cd <repo>
+
+# Install PortAudio
+brew install portaudio
+
 ```
 ```bash
 #Install the project and its dependencies (if you don't have a compatible version of python on your system
 #uv will automatically install it for you)
 uv sync
 ```
-```bash
-#you can now run all packages installed such as pre-commit, ruff and pytest using
-uv run <package>
-```
-
 To activate the virtual environment in your shell, use:
 ```bash
 source .venv/bin/activate
 ```
 
-## Local development
-Relying on the remote CI pipeline to check your code leads to slow development iteration. Locally, you can trigger:
-
-- linting & formatting checks : `uv run pre-commit run --all-files`
-- tests: `uv run pytest tests/`
 
 ## Streaming Client
 
@@ -116,54 +110,6 @@ This project includes a standalone speech-to-text module using the ElevenLabs AP
    node dist/speech-to-text-example.js
    ```
 
-### Usage Examples
-
-**Python:**
-```python
-from speech_to_text_example import ElevenLabsSpeechToText
-
-# From environment variable
-stt = ElevenLabsSpeechToText.from_env()
-
-# Transcribe file
-result = stt.transcribe_file("audio.mp3", response_format="verbose_json")
-print(result["text"])
-
-# Transcribe buffer
-with open("audio.mp3", "rb") as f:
-    buffer_result = stt.transcribe_buffer(f.read(), "audio.mp3")
-```
-
-**TypeScript:**
-```typescript
-import { ElevenLabsSpeechToText } from './speech-to-text.js';
-
-const stt = ElevenLabsSpeechToText.fromEnv();
-const result = await stt.transcribeFile('audio.mp3');
-console.log(result.text);
-```
-
-### API Key Setup
-
-Get your ElevenLabs API key from [https://elevenlabs.io/docs/introduction](https://elevenlabs.io/docs/introduction) and add it to your `.env` file:
-
-```
-ELEVENLABS_API_KEY=your_api_key_here
-```
-
-## Real-time Speech-to-Text WebSocket Server
-
-This project includes a real-time speech-to-text WebSocket server that streams audio to ElevenLabs for live transcription.
-
-### Features
-
-- **Real-time Audio Processing**: Processes audio streams every 1 second
-- **WebSocket Integration**: Receives audio data via WebSocket connections
-- **Live Transcription**: Uses ElevenLabs Speech-to-Text API for high-quality transcription
-- **Automatic Logging**: Saves transcriptions to timestamped log files
-- **Pause Detection**: Basic pause detection in audio streams
-- **Microphone Support**: Includes client for live microphone streaming
-
 ### Quick Start
 
 1. **Set up your ElevenLabs API key:**
@@ -197,8 +143,6 @@ This project includes a real-time speech-to-text WebSocket server that streams a
    uv run python src/microphone_client.py
    ```
 
-### Usage Examples
-
 #### Live Microphone Transcription
 
 The `microphone_client.py` provides a complete example of streaming microphone audio for live transcription:
@@ -228,41 +172,3 @@ Example response format:
     "transcription": "Hello, this is the transcribed text"
 }
 ```
-
-### Audio Requirements
-
-- **Format**: 16-bit PCM audio
-- **Sample Rate**: 16,000 Hz recommended
-- **Channels**: Mono (1 channel) recommended
-- **Chunk Size**: 1024 bytes recommended for real-time streaming
-
-### Output Files
-
-- **Server logs**: Console output with detailed WebSocket activity
-- **Transcription logs**: `transcription_log_{session_name}.txt` with timestamped transcriptions
-- **Client logs**: `live_transcription.txt` with real-time transcriptions
-
-### Troubleshooting
-
-**PyAudio Installation Issues:**
-```bash
-# macOS
-brew install portaudio
-pip install pyaudio
-
-# Ubuntu/Debian
-sudo apt-get install python3-pyaudio
-
-# Windows
-pip install pipwin
-pipwin install pyaudio
-```
-
-**Connection Issues:**
-- Ensure the WebSocket server is running on port 8000
-- Check that your `ELEVENLABS_API_KEY` environment variable is set
-- Verify your microphone permissions are granted
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. It also includes a custom license in [LICENSE.txt](LICENSE.txt).
