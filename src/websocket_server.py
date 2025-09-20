@@ -38,8 +38,8 @@ async def websocket_endpoint(websocket: WebSocket):
     2. Client sends a JSON message with "prompt" (str) and "duration" (int).
     3. Client starts sending audio data as binary messages.
     4. Server receives audio data and sends back a JSON message with
-       "is_there_a_pause" (bool) and the processed audio data as a binary
-       message.
+       "is_there_a_pause" (bool), the base64-encoded processed audio chunk,
+       and any available transcription text.
 
     Args:
         websocket (WebSocket): The WebSocket connection object.

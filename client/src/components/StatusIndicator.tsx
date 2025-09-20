@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import cn from "clsx";
 import { ConversationStatus } from "./AudioDashboard";
 
 interface StatusIndicatorProps {
