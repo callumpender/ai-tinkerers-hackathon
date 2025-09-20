@@ -8,6 +8,8 @@ import { DedalusClient } from './client.js';
 import {
     searchToolDefinition,
     handleSearchTool,
+    audioTranscriptionToolDefinition,
+    handleAudioTranscriptionTool,
 } from './tools/index.js';
 
 export function createStandaloneServer(apiKey: string): Server {
@@ -30,7 +32,7 @@ export function createStandaloneServer(apiKey: string): Server {
     });
 
     serverInstance.setRequestHandler(ListToolsRequestSchema, async () => ({
-        tools: [searchToolDefinition],
+        tools: [searchToolDefinition, audioTranscriptionToolDefinition],
     }));
 
     serverInstance.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -39,6 +41,8 @@ export function createStandaloneServer(apiKey: string): Server {
         switch (name) {
             case "dedalus_search":
                 return await handleSearchTool(dedalusClient, args);
+            case "dedalus_transcribe_audio":
+                return await handleAudioTranscriptionTool(dedalusClient, args);
             default:
                 return {
                     content: [{ type: "text", text: `Unknown tool: ${name}` }],

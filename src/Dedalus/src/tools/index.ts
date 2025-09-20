@@ -1,5 +1,6 @@
 export {
     searchToolDefinition,
     handleSearchTool,
-    // Export all tool definitions and handlers
+    audioTranscriptionToolDefinition,
+    handleAudioTranscriptionTool,
 } from './dedalus.js';

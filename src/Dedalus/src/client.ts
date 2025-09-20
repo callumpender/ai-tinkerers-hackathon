@@ -1,11 +1,14 @@
-import { DedalusResponse } from './types.js';
+import {
+    DedalusResponse,
+} from './types.js';
 
 export class DedalusClient {
     private apiKey: string;
-    private baseUrl: string = 'https://api.dedalus.com';
+    private baseUrl: string;
 
-    constructor(apiKey: string) {
+    constructor(apiKey: string, baseUrl: string = 'https://api.dedaluslabs.ai/v1') {
         this.apiKey = apiKey;
+        this.baseUrl = baseUrl;
     }
 
     /**
