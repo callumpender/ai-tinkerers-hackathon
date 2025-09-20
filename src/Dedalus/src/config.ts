@@ -8,11 +8,7 @@ export interface Config {
 }
 
 export function loadConfig(): Config {
-    const apiKey = process.env['DEDALUS_API_KEY'];
-    if (!apiKey) {
-        throw new Error('DEDALUS_API_KEY environment variable is required');
-    }
-
+    const apiKey = process.env['DEDALUS_API_KEY'] ?? 'demo-key';
     const port = parseInt(process.env.PORT || '8080', 10);
     const isProduction = process.env.NODE_ENV === 'production';
 
