@@ -10,30 +10,40 @@ This project is our submission for the Ultimate Agents Hackathon, the biggest ha
 - Callum
 
 ## Getting started
-This project makes use of `pyenv` for python version management and `poetry` for virtual environment/ dependency management. To get started with these tools, you can refer to [Python dev](https://www.notion.so/facultyai/Tips-and-tricks-027fd336f3b34e3ba4f487899826bb12?pvs=4) in Notion.
+This project makes use of `pyenv` for python version management and `uv` for virtual environment/ dependency management. To get started with these tools, you can refer to [Python dev](https://www.notion.so/facultyai/Tips-and-tricks-027fd336f3b34e3ba4f487899826bb12?pvs=4) in Notion.
 
+### Prerequisites
+Make sure you have `uv` installed. If you don't have it, install it using:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+### Installation
 ```bash
 #Clone the repository using your preferred method(SSH vs HTTPS)
 git clone <repo_url>
 cd <repo>
 ```
 ```bash
-#Create the poetry virtual environment (if you don't have a compatible version of python on your system
-#you might have to install it !!Danger platform user see pyenv in Notion above!!)
-poetry install
+#Install the project and its dependencies (if you don't have a compatible version of python on your system
+#uv will automatically install it for you)
+uv sync
 ```
 ```bash
 #you can now run all packages installed such as pre-commit, ruff and pytest using
-poetry run <package>
+uv run <package>
 ```
 
-Note `poetry shell` has been deprecated in 2.0.0, use `eval $(poetry env activate)` to create a poetry shell.
+To activate the virtual environment in your shell, use:
+```bash
+source .venv/bin/activate
+```
 
 ## Local development
 Relying on the remote CI pipeline to check your code leads to slow development iteration. Locally, you can trigger:
 
-- linting & formatting checks : `poetry run pre-commit run --all-files`
-- tests: `poetry run pytest tests/`
+- linting & formatting checks : `uv run pre-commit run --all-files`
+- tests: `uv run pytest tests/`
 
 ## Streaming Client
 
@@ -72,7 +82,7 @@ This project includes a standalone speech-to-text module using the ElevenLabs AP
 1. **Install Dependencies:**
    ```bash
    cd src/Dedalus
-   pip install -r requirements.txt
+   uv pip install -r requirements.txt
    ```
 
 2. **Configure API Key:**
