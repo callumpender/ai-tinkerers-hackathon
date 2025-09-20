@@ -3,7 +3,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 export async function runStdioTransport(server: Server): Promise<void> {
     const transport = new StdioServerTransport();
-    
+
     try {
         await server.connect(transport);
         console.error("Dedalus MCP Server running on stdio");

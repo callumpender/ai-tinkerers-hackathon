@@ -29,7 +29,7 @@ export function startHttpTransport(config: Config): void {
     });
 
     const host = config.isProduction ? '0.0.0.0' : 'localhost';
-    
+
     httpServer.listen(config.port, host, () => {
         logServerStart(config);
     });
@@ -68,7 +68,7 @@ async function handleSSERequest(
 ): Promise<void> {
     const serverInstance = createStandaloneServer(config.apiKey);
     const transport = new SSEServerTransport('/sse', res);
-    
+
     try {
         await serverInstance.connect(transport);
         console.log('SSE connection established');
@@ -112,8 +112,8 @@ async function createNewSession(
 
 function handleHealthCheck(res: ServerResponse): void {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ 
-        status: 'healthy', 
+    res.end(JSON.stringify({
+        status: 'healthy',
         timestamp: new Date().toISOString(),
         service: 'dedalus-mcp',
         version: '0.2.0'
@@ -126,10 +126,10 @@ function handleNotFound(res: ServerResponse): void {
 }
 
 function logServerStart(config: Config): void {
-    const displayUrl = config.isProduction 
-        ? `Port ${config.port}` 
+    const displayUrl = config.isProduction
+        ? `Port ${config.port}`
         : `http://localhost:${config.port}`;
-    
+
     console.log(`Dedalus MCP Server listening on ${displayUrl}`);
 
     if (!config.isProduction) {

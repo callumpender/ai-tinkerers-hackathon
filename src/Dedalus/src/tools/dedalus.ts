@@ -33,7 +33,7 @@ function isSearchArgs(args: unknown): args is SearchArgs {
  * Handles search tool calls
  */
 export async function handleSearchTool(
-    client: DedalusClient, 
+    client: DedalusClient,
     args: unknown
 ): Promise<CallToolResult> {
     try {
@@ -46,7 +46,7 @@ export async function handleSearchTool(
         }
 
         const result = await client.performRequest(args);
-        
+
         return {
             content: [{ type: "text", text: result }],
             isError: false,

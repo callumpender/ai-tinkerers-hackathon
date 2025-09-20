@@ -7,10 +7,10 @@ using Python with support for various audio formats and response types.
 """
 
 import os
-import json
-import requests
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Union
+from typing import Any, Dict, List, Optional
+
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -31,7 +31,7 @@ class ElevenLabsSpeechToText:
         model: Optional[str] = None,
         language: Optional[str] = None,
         response_format: str = "json",
-        timestamp_granularities: Optional[List[str]] = None
+        timestamp_granularities: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Transcribe an audio file.
@@ -51,9 +51,7 @@ class ElevenLabsSpeechToText:
 
         # Prepare the request
         url = f"{self.base_url}/v1/speech-to-text"
-        headers = {
-            "xi-api-key": self.api_key
-        }
+        headers = {"xi-api-key": self.api_key}
 
         # Prepare form data
         data = {}
@@ -87,7 +85,7 @@ class ElevenLabsSpeechToText:
         model: Optional[str] = None,
         language: Optional[str] = None,
         response_format: str = "json",
-        timestamp_granularities: Optional[List[str]] = None
+        timestamp_granularities: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Transcribe audio from a buffer.
@@ -104,9 +102,7 @@ class ElevenLabsSpeechToText:
             Transcription result as dictionary
         """
         url = f"{self.base_url}/v1/speech-to-text"
-        headers = {
-            "xi-api-key": self.api_key
-        }
+        headers = {"xi-api-key": self.api_key}
 
         # Prepare form data
         data = {}
@@ -139,17 +135,17 @@ class ElevenLabsSpeechToText:
         """Get MIME type from filename extension."""
         ext = Path(filename).suffix.lower()
         mime_types = {
-            '.mp3': 'audio/mpeg',
-            '.wav': 'audio/wav',
-            '.flac': 'audio/flac',
-            '.aac': 'audio/aac',
-            '.ogg': 'audio/ogg',
-            '.webm': 'audio/webm',
-            '.mp4': 'video/mp4',
-            '.avi': 'video/avi',
-            '.mkv': 'video/x-matroska',
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+            ".flac": "audio/flac",
+            ".aac": "audio/aac",
+            ".ogg": "audio/ogg",
+            ".webm": "audio/webm",
+            ".mp4": "video/mp4",
+            ".avi": "video/avi",
+            ".mkv": "video/x-matroska",
         }
-        return mime_types.get(ext, 'audio/mpeg')
+        return mime_types.get(ext, "audio/mpeg")
 
     @classmethod
     def from_env(cls, env_key: str = "ELEVENLABS_API_KEY") -> "ElevenLabsSpeechToText":
@@ -175,9 +171,7 @@ def demonstrate_transcription():
 
         if Path(audio_file_path).exists():
             file_result = speech_to_text.transcribe_file(
-                audio_file_path,
-                response_format="verbose_json",
-                timestamp_granularities=["word", "segment"]
+                audio_file_path, response_format="verbose_json", timestamp_granularities=["word", "segment"]
             )
 
             print("File transcription result:")
@@ -198,10 +192,7 @@ def demonstrate_transcription():
                 audio_buffer = f.read()
 
             buffer_result = speech_to_text.transcribe_buffer(
-                audio_buffer,
-                "audio.mp3",
-                response_format="json",
-                language="en"
+                audio_buffer, "audio.mp3", response_format="json", language="en"
             )
 
             print("Buffer transcription result:")
@@ -215,10 +206,7 @@ def demonstrate_transcription():
         print("Example 3: Different response formats...")
 
         if Path(audio_file_path).exists():
-            text_result = speech_to_text.transcribe_file(
-                audio_file_path,
-                response_format="text"
-            )
+            text_result = speech_to_text.transcribe_file(audio_file_path, response_format="text")
 
             print("Text-only result:", text_result.get("text", ""))
 
