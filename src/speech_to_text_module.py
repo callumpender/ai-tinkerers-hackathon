@@ -16,8 +16,6 @@ import wave
 from elevenlabs.client import ElevenLabs
 import subprocess
 
-os.environ["ELEVENLABS_API_KEY"] = "sk_92c8eb8f51ac1a6b7cf9ddb6b9eb2f0fc9afb5ee28895cf7"
-
 
 class SpeechToTextProcessor:
     """
