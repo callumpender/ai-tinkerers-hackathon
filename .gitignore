@@ -13,6 +13,8 @@ data/
 *.png
 *.jpg
 *.jpeg
+*.wav
+*.m4a
 
 # Temporary and binary files
 *~

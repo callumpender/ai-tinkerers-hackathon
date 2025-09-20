@@ -6,6 +6,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 
+try:
+    import numpy as np
+except ImportError:  # pragma: no cover - dependency missing at runtime
+    np = None
+
+try:
+    import sounddevice as sd
+except ImportError:  # pragma: no cover - dependency missing at runtime
+    sd = None
+
+try:
+    import soundfile as sf
+except ImportError:  # pragma: no cover - dependency missing at runtime
+    sf = None
+
+import tempfile
+
 from mutagen.mp4 import MP4, MP4StreamInfoError
 
 JSONDict = Dict[str, Any]
@@ -38,6 +55,12 @@ AUDIO_TOOL = ToolDefinition(
         },
         "required": ["filePath"],
     },
+)
+
+MIC_RECORD_TOOL = ToolDefinition(
+    name="dedalus_record_microphone",
+    description="Capture 5 seconds from the default microphone and report loudness statistics.",
+    input_schema={"type": "object", "properties": {}, "required": []},
 )
 
 
@@ -77,7 +100,7 @@ def handle_list_tools(request_id: Optional[int]) -> JSONDict:
     return {
         "jsonrpc": "2.0",
         "id": request_id,
-        "result": {"tools": [AUDIO_TOOL.as_json()]},
+        "result": {"tools": [AUDIO_TOOL.as_json(), MIC_RECORD_TOOL.as_json()]},
     }
 
 
@@ -104,18 +127,24 @@ def handle_call_tool(request_id: Optional[int], params: JSONDict) -> JSONDict:
     name = params.get("name")
     args = params.get("arguments", {}) or {}
 
-    if name != AUDIO_TOOL.name:
-        return {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "result": {
-                "content": [
-                    {"type": "text", "text": f"Unknown tool: {name}"},
-                ],
-                "isError": True,
-            },
-        }
+    if name == AUDIO_TOOL.name:
+        return handle_audio_tool(request_id, args)
+    if name == MIC_RECORD_TOOL.name:
+        return handle_microphone_tool(request_id)
 
+    return {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "result": {
+            "content": [
+                {"type": "text", "text": f"Unknown tool: {name}"},
+            ],
+            "isError": True,
+        },
+    }
+
+
+def handle_audio_tool(request_id: Optional[int], args: JSONDict) -> JSONDict:
     if not isinstance(args, dict) or not isinstance(args.get("filePath"), str):
         return {
             "jsonrpc": "2.0",
@@ -185,6 +214,98 @@ def handle_call_tool(request_id: Optional[int], params: JSONDict) -> JSONDict:
         "message": "Received audio file",
         "durationSeconds": duration,
         "filePath": str(path),
+    }
+
+    return {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "result": {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps(payload, indent=2),
+                }
+            ],
+        },
+    }
+
+
+def ensure_audio_dependencies() -> Optional[str]:
+    if sd is None:
+        return "sounddevice is not installed"
+    if sf is None:
+        return "soundfile is not installed"
+    if np is None:
+        return "numpy is not installed"
+    return None
+
+
+def handle_microphone_tool(request_id: Optional[int]) -> JSONDict:
+    dep_error = ensure_audio_dependencies()
+    if dep_error:
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Error: {dep_error}. Install dependencies listed in pyproject.toml.",
+                    }
+                ],
+                "isError": True,
+            },
+        }
+
+    duration_seconds = 5
+    sample_rate = 16_000
+    channels = 1
+
+    try:
+        recording = sd.rec(
+            int(duration_seconds * sample_rate),
+            samplerate=sample_rate,
+            channels=channels,
+            dtype="float32",
+        )
+        sd.wait()
+    except Exception as exc:  # pragma: no cover - relies on system audio
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Error: Unable to access microphone - {exc}",
+                    }
+                ],
+                "isError": True,
+            },
+        }
+
+    mono = np.squeeze(recording)
+    peak = float(np.max(np.abs(mono)))
+    rms = float(np.sqrt(np.mean(np.square(mono))))
+
+    if rms < 0.01:
+        loudness = "very quiet"
+    elif rms < 0.05:
+        loudness = "moderate"
+    else:
+        loudness = "loud"
+
+    target_path = Path.cwd() / "microphone_capture.wav"
+    sf.write(target_path, recording, sample_rate)
+
+    payload = {
+        "message": "Captured 5 seconds from microphone",
+        "durationSeconds": duration_seconds,
+        "sampleRate": sample_rate,
+        "rms": rms,
+        "peak": peak,
+        "loudnessCategory": loudness,
+        "savedFile": str(target_path),
     }
 
     return {

@@ -8,7 +8,7 @@ from typing import TextIO
 AUDIO_PATH = "/Users/hansgunnoo/Documents/ai_tinkerers_hackathon/test_lull.m4a"  # <= update this
 
 
-def read_line(stream: TextIO, *, label: str, timeout: float = 5.0) -> str:
+def read_line(stream: TextIO, *, label: str, timeout: float = 6.0) -> str:
     """Read a single line with a timeout so we can debug stalls."""
     selector = selectors.DefaultSelector()
     selector.register(stream, selectors.EVENT_READ)
@@ -71,7 +71,7 @@ initialize_response = send(
     label="initialize",
 )
 
-call_response = send(
+file_response = send(
     {
         "jsonrpc": "2.0",
         "id": 2,
@@ -85,6 +85,21 @@ call_response = send(
 )
 
 print("initialize ->", initialize_response)
-print("tools/call ->", call_response)
+print("file tool ->", file_response)
+
+microphone_response = send(
+    {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+            "name": "dedalus_record_microphone",
+            "arguments": {},
+        },
+    },
+    label="tools/call (microphone)",
+)
+
+print("microphone tool ->", microphone_response)
 
 proc.terminate()
