@@ -1,10 +1,13 @@
-# faculty_ai_tinkerers_hackathon
+# Ultimate Agents Hackathon
 
-A short description of your project goes here...
+This project is our submission for the Ultimate Agents Hackathon, the biggest hackathon yet in London. We are building with cutting-edge AI agent tools to compete for fun, and to learn.
 
-## Description
+## The Team
 
-A longer description of your project goes here...
+- Hans
+- Claude
+- Spyros
+- Callum
 
 ## Getting started
 This project makes use of `pyenv` for python version management and `poetry` for virtual environment/ dependency management. To get started with these tools, you can refer to [Python dev](https://www.notion.so/facultyai/Tips-and-tricks-027fd336f3b34e3ba4f487899826bb12?pvs=4) in Notion.
@@ -27,12 +30,12 @@ poetry run <package>
 Note `poetry shell` has been deprecated in 2.0.0, use `eval $(poetry env activate)` to create a poetry shell.
 
 ## Local development
- Relying on the remote CI pipeline to check your code leads to slow development  iteration. Locally, you can trigger:
+Relying on the remote CI pipeline to check your code leads to slow development iteration. Locally, you can trigger:
 
- - linting & formatting checks : `poetry run pre-commit run --all-files`
- - tests: `poetry run pytest tests/`
+- linting & formatting checks : `poetry run pre-commit run --all-files`
+- tests: `poetry run pytest tests/`
 
 
-## Note
+## License
 
-This project has been setup using Faculty's [consultancy-cookie](https://gitlab.com/facultyai/faculty-tools/consultancy-cookie).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. It also includes a custom license in [LICENSE.txt](LICENSE.txt).
