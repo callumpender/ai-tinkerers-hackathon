@@ -9,6 +9,12 @@ This project is our submission for the Ultimate Agents Hackathon, the biggest ha
 - Spyros
 - Callum
 
+# FRONTEND
+npm install
+
+npm run dev
+
+
 ## Getting started
 This project makes use of `pyenv` for python version management and `uv` for virtual environment/ dependency management. To get started with these tools, you can refer to [Python dev](https://www.notion.so/facultyai/Tips-and-tricks-027fd336f3b34e3ba4f487899826bb12?pvs=4) in Notion.
 
